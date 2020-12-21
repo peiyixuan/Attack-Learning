@@ -89,3 +89,48 @@ for images, labels in normal_loader:
         
 print('Accuracy of test text: %f %%' % (100 * float(correct) / total))
 
+#adversarial attack
+def fgsm_attack(model, loss, images, labels, eps) :
+    
+    images = images.to(device)
+    labels = labels.to(device)
+    images.requires_grad = True
+            
+    outputs = model(images)
+    
+    model.zero_grad()
+    cost = loss(outputs, labels).to(device)
+    cost.backward()
+    
+    attack_examples = eps*images.grad.sign()
+    attack_images = images + eps*images.grad.sign()
+    attack_images = torch.clamp(attack_images, 0, 1)
+    
+    return attack_images, attack_examples
+
+loss = nn.CrossEntropyLoss()
+
+print("Attack Image & Predicted Label")
+
+model.eval()
+
+correct = 0
+total = 0
+
+for images, labels in normal_loader:
+    
+    images, attack_examples = fgsm_attack(model, loss, images, labels, eps)
+    images = images.to(device)
+    attack_examples = attack_examples.to(device)
+    labels = labels.to(device)
+    outputs = model(images)
+    
+    _, pre = torch.max(outputs.data, 1)
+    
+    total += 1
+    correct += (pre == labels).sum()
+    
+    imshow(torchvision.utils.make_grid(images.cpu().data, normalize=True), [normal_data.classes[i] for i in pre])
+    imshow(torchvision.utils.make_grid(attack_examples.cpu().data, normalize=True), [normal_data.classes[i] for i in pre])
+    
+print('Accuracy of test text: %f %%' % (100 * float(correct) / total))
