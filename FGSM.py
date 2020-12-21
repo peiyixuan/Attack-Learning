@@ -60,5 +60,32 @@ def imshow(img, title):
 normal_iter = iter(normal_loader)  #生成迭代器
 images, labels = normal_iter.next()
 
-print("True Image & True Label")
-imshow(torchvision.utils.make_grid(images, normalize=True), [normal_data.classes[i] for i in labels])
+#print("True Image & True Label")
+#imshow(torchvision.utils.make_grid(images, normalize=True), [normal_data.classes[i] for i in labels])
+
+#download the inceptionv3
+device = torch.device("cuda" if use_cuda else "cpu")
+model = models.inception_v3(pretrained=True).to(device)
+print("True Image & Predicted Label")
+
+model.eval()
+
+#test
+correct = 0
+total = 0
+
+for images, labels in normal_loader:
+    
+    images = images.to(device)
+    labels = labels.to(device)
+    outputs = model(images)
+    
+    _, pre = torch.max(outputs.data, 1)
+    
+    total += 1
+    correct += (pre == labels).sum()
+    
+    imshow(torchvision.utils.make_grid(images.cpu().data, normalize=True), [normal_data.classes[i] for i in pre])
+        
+print('Accuracy of test text: %f %%' % (100 * float(correct) / total))
+
