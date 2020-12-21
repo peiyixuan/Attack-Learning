@@ -89,7 +89,7 @@ for images, labels in normal_loader:
         
 print('Accuracy of test text: %f %%' % (100 * float(correct) / total))
 
-#adversarial attack
+#FGSM attack
 def fgsm_attack(model, loss, images, labels, eps) :
     
     images = images.to(device)
@@ -108,6 +108,32 @@ def fgsm_attack(model, loss, images, labels, eps) :
     
     return attack_images, attack_examples
 
+#PGD attack
+def pgd_attack(model, loss, images, labels, steps, eps, alpha, random_start=False):
+    images = images.to(device)
+    labels = labels.to(device)
+    adv_images = images
+    adv_images.requires_grad = True
+    if random_start:
+            # Starting at a uniformly random point
+            adv_images = adv_images + torch.empty_like(adv_images).uniform_(-eps, eps)
+            adv_images = torch.clamp(adv_images, min=0, max=1)
+
+    for i in range(steps):
+        adv_images.requires_grad = True
+        outputs = model(adv_images)
+        
+        cost = loss(outputs, labels)
+
+        grad = torch.autograd.grad(cost, adv_images, retain_graph=False, create_graph=False)[0]
+        adv_images = adv_images + alpha*grad.sign()
+        delta = torch.clamp(adv_images - images, min=-eps, max=eps)
+        adv_images = torch.clamp(images + delta, min=0, max=1)
+
+    
+    return adv_images
+
+
 loss = nn.CrossEntropyLoss()
 
 print("Attack Image & Predicted Label")
@@ -119,7 +145,8 @@ total = 0
 
 for images, labels in normal_loader:
     
-    images, attack_examples = fgsm_attack(model, loss, images, labels, eps)
+    #images, attack_examples = fgsm_attack(model, loss, images, labels, eps)
+    images = pgd_attack(model, loss, images, labels, steps=40, eps=0.3, alpha=2/255)
     images = images.to(device)
     attack_examples = attack_examples.to(device)
     labels = labels.to(device)
